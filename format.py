@@ -34,6 +34,13 @@ if args.zip:
 		ret = getOneShellOutput(cmd)
 		if not isfile(outFile):
 			raise Exception("wget failed.")
+else:
+	ori = homeDir+'data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.fai'
+	tmp = homeDir+'data/GENRE/hg19/genome/temp.fa.fai'
+	getOneShellOutput("cp %s %s"%(ori,tmp))
+	getOneShellOutput("mv %s %s"%(tmp, ori))
+	if not isfile(ori):
+		raise Exception("Genome FASTA index file missing.")
 
 
 toUnzip = [homeDir+"data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.bed.gz",homeDir+"data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.db.gz",homeDir+"data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.gz",homeDir+"data/GENRE/hg19/criteria/hg19_repeats.bed.gz"]
