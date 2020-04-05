@@ -1,0 +1,65 @@
+#!/usr/bin/env python
+
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, dirname, realpath, isdir, basename
+from os import listdir
+
+def getOneShellOutput(cmd):
+	#print cmd
+	from subprocess import call, PIPE, Popen
+	job_process = Popen(cmd, shell=True, stdout = PIPE, stderr = PIPE)
+	out_stream, err_stream = job_process.communicate()
+	#if len(err_stream)!=0:
+	#    print err_stream
+	return [out_stream.strip(),err_stream]
+
+homeDir = dirname(realpath(__file__))+"/"
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('db', metavar = 'database', help='database ID')
+arg_obj.add_argument('FG', metavar = 'FG', help='FG BED file')
+arg_obj.add_argument('motifs', metavar = 'motifs', help='motifs ID')
+arg_obj.add_argument('-seed', metavar = 'seed', help='seed for randomization, preferably a number; default 123456789')
+arg_obj.add_argument('-BG', metavar = 'BG', help='output directory name. If not given, prefix will be the same as the FG file')
+args = arg_obj.parse_args()
+
+if not isfile(homeDir+"../GENRE/GENRE") or not isfile(homeDir+"glossary"):
+	raise Exception("Both GENRE and glossary need to be installed for this command to run.")
+
+#copied from GENRE
+if args.BG is not None:
+	if args.BG[-1]!='/':
+		args.BG+='/'
+	BGdir = args.BG
+	#BG = BGdir+basename(args.BG)+'.bed'
+else:
+	BGdir = args.FG.rsplit('.',1)[0]+"_%sBG"%(args.db.replace("_","-"))+'/'
+	#BG = BGdir+basename(args.FG).rsplit('.',1)[0]+"_%sBG.bed"%(args.db.replace("_","-"))
+
+fa=BGdir+basename(args.FG).rsplit('.',1)[0]+'.fa'
+
+extraArgs = ''
+if args.seed is not None:
+    extraArgs+=' -seed %s'%(args.seed)
+#if args.BG is not None:
+	#extraArgs+=' -BG %s'%(args.BG)
+extraArgs+=' -BG %s'%(BGdir)
+extraArgs+=' '
+
+print "Building Background"
+cmd = "%s../GENRE/GENRE%s%s %s"%(homeDir,extraArgs,args.db,args.FG)
+ret = getOneShellOutput(cmd)
+if len(ret[1])!=0 or not isfile(fa) or not isfile(ret[0].split("\n")[-1]) or not isfile(ret[0].split("\n")[-1].rsplit('.',1)[0]+'.fa'):
+	raise Exception("GENRE command failed to produce the expected output. Error:\n%s"%(ret[1]))
+else:
+	print ret[0]
+	BG = ret[0].split("\n")[-1].rsplit('.',1)[0]+'.fa'
+
+print "Calculating Enrichment"
+ret = getOneShellOutput("%sglossary %s %s %s"%(homeDir,fa,BG,args.motifs))
+if len(ret[1])!=0 or not isfile(ret[0].split("\n")[-1]):
+	raise Exception("glossary command failed to produce the expected output. Error:\n%s"%(ret[1]))
+else:
+	print ret[0]
+

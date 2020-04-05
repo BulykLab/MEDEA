@@ -1,0 +1,95 @@
+#!/usr/bin/env python
+
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, dirname, realpath, isdir, basename
+from os import listdir, makedirs
+import csv
+
+def getOneShellOutput(cmd):
+	#print cmd
+	from subprocess import call, PIPE, Popen
+	job_process = Popen(cmd, shell=True, stdout = PIPE, stderr = PIPE)
+	out_stream, err_stream = job_process.communicate()
+	#if len(err_stream)!=0:
+	#    print err_stream
+	return [out_stream.strip(),err_stream]
+
+homeDir = dirname(realpath(__file__))+"/"
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('FG', metavar = 'FG', help='FG fa file')
+arg_obj.add_argument('BG', metavar = 'BG', help='BG fa file')
+arg_obj.add_argument('motifs', metavar = 'motifs', help='motifs ID')
+args = arg_obj.parse_args()
+
+if not isfile(args.FG) or not isfile(args.BG):
+	raise Exception("At least one of the given files doesn't exist. Please try again.")
+
+typ = args.motifs.rsplit("-",1)[-1]
+d=homeDir+"../../data/glossary/motifs/"+args.motifs+"/"
+
+if not isdir(d):
+	raise Exception("Please download a valid motif set. See python getGENRE.py -avail for options.")
+
+if not isfile(homeDir+"getAUC"):
+	raise Exception("The getAUC script is not found. This should not have happened if you downloaded the glossary software through getGENRE.py. Please try again and don't edit the files in the bin directory. Exitting.")
+
+wcFG = getOneShellOutput("wc -l %s | cut -d' ' -f1"%(args.FG))[0]
+wcBG = getOneShellOutput("wc -l %s | cut -d' ' -f1"%(args.BG))[0]
+if wcFG!=wcBG:
+	raise Exception("To use the glossary software, the multiplicity of the background must be 1, i.e. equal number of sequences between foreground and background.")
+
+#verify FASTA file format
+cmd = "awk '{if(NR%%2!=0 && substr($0,1,1)!=\">\") print NR\": Identifer line needs to start with >\"; if(NR%%2==0 && $0 !~ /^[ACGTNacgt]+$/) print NR\": Only ACGTNacgt bases are allowed\"}' %s"
+ret = getOneShellOutput(cmd%(args.FG))
+if len(ret[0])!=0 or len(ret[1])!=0:
+	raise Exception("Your FG file does not appear to be in FASTA format.\nErrors:\n%s\n%s"%(ret[0],ret[1]))
+ret = getOneShellOutput(cmd%(args.BG))
+if len(ret[0])!=0 or len(ret[1])!=0:
+	raise Exception("Your BG file does not appear to be in FASTA format.\nErrors:\n%s\n%s"%(ret[0],ret[1]))
+
+"""
+#hiding for MEDEA beta ZIP.
+dnld=homeDir+"../../downloads.txt"
+if not isfile(dnld):
+	print "Couldn't find downloads.txt file in the glossary-GENRE home directory on your system, so couldn't determine glossary version. In the future, do not delete this file."
+else:
+	print "Using glossary version %s"%(getOneShellOutput("grep \"$(printf '^glossary%s')\" %s | cut -f2"%(r"\t",dnld))[0])
+"""
+
+head=[["motif","AUROC","p-val","numFG","numBG","medDisFG","medDisBG","posTest","motifScore"]]
+AUC = []
+lastF=None; lastLines=None
+for f in listdir(d):
+	cmd = 'awk \'BEGIN{err=""} {if(NF==2) {if($1 !~ /^[ACGTNacgt]+$/ || $2 !~ /^[0-9\.e\-\+]+$/) print "line "NR": The first column should be bases only (ACGTNacgt) and the second column should be a number (E-scores usually 0-0.5)."} else if(NF==4) {if(NR!=1 || $0 !~ /^%s$/) print "line "NR": The first line should be ACGT separated by tabs with a blank first column. Subsequent lines should be position and PWM lines separarted by tabs."} else if(NF==5) {if(NR==1 || $0 !~ /^%s$/) print "line "NR": The first line should be ACGT separated by tabs with a blank first column. Subsequent lines should be position and PWM lines separarted by tabs."} else {err="Only kmer (2 columns) and pwm (5 columns) file are currently accepted."}} END{if(err!="") print err}\' %s'%(r"\t".join(['','A','C','G','T']),r"\t".join(["[0-9]+"] + ["[0-9\.e\-\+]+"]*4),d+f)
+	valid = getOneShellOutput(cmd)
+	if len(valid[1])==0 and len(valid[0])==0:
+		cmd = "%sgetAUC %s %s %s %s"%(homeDir,d+f,args.FG,args.BG,typ)
+		ret = getOneShellOutput(cmd)
+		if len(ret[0])!=0:
+			lastF=f
+			lines=ret[0].split("\n")
+			lastLines=[x for x in lines if not x.startswith('WARNING')][1]
+			arr = [f]
+			arr.extend(lines[-1].split("\t"))
+			AUC.append(arr)
+		else:
+			print "%s failed with error output: %s"%(f,ret[1])
+	else:
+		print "file %s was not formatted correctly. This should not have happened if you downloaded the motif set through getGENRE.py or added your own set via addMotifSet. Please try again and don't edit the files in the data directory. Skipping.\nErrors:\n%s"%(f,valid[0]+"\n"+valid[1])
+
+if lastF!=None and lastLines!=None:
+	print "Foreground matches (if any) per %s file can be found in directory: %s\nwith files that look like: %s"%(typ, dirname(lastLines),basename(lastLines).replace(lastF.rsplit('.',1)[0],"{TF}"))
+
+if AUC!=[]:
+	arr = sorted(AUC,key=lambda x:x[1],reverse=True)
+	outF = args.BG.rsplit('.',1)[0]+"_"+args.motifs+".txt"
+	with open(outF, "wb") as f:
+		csv_writer = csv.writer(f,delimiter='\t',lineterminator="\n")
+		csv_writer.writerows(head)
+		csv_writer.writerows(arr)
+	print "The AUC results are in:\n%s"%(outF)
+else:
+	print "No AUC results to report."
+	

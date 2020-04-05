@@ -1,0 +1,144 @@
+kew19@compute-a-16-62:/n/data2/bch/medicine/bulyk/shared_data/kw_lm/tool/v1.0$ /usr/bin/time bin/MEDEA/MEDEA hg19_DNaseSeq testing/DNASE.K562.merged.bed benchmark-kmer hg19_ENCODE-DREAM_DNase_relaxed -best 4,desc,500 -skip .,1 -compress
+Verifying arguments
+Running original file
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_best_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_best_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_best_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_best_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Applying MEDEA
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_Panc1_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_Panc1_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_Panc1_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_Panc1_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+SKIPPING ref file: K562.bed
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_MCF-7_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_MCF-7_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_MCF-7_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_MCF-7_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HeLa-S3_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HeLa-S3_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_HeLa-S3_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HeLa-S3_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HCT116_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HCT116_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_HCT116_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HCT116_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HepG2_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HepG2_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_HepG2_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_HepG2_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_H1-hESC_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_H1-hESC_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_H1-hESC_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_H1-hESC_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_GM12878_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_GM12878_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_GM12878_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_GM12878_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_PC-3_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_PC-3_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_PC-3_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_PC-3_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_IMR90_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_IMR90_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_IMR90_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_IMR90_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_A549_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_A549_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_A549_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_A549_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Building Background
+Deleting any blank lines from Foreground BED file and transferring copy to output directory
+SEED: 123456789
+Your background now exists in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_iPSC_hg19-DNaseSeqBG.bed
+Calculating Enrichment
+Foreground matches (if any) per kmer file can be found in directory: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_iPSC_hg19-DNaseSeqBG_motifMatches
+with files that look like: DNASE.K562.merged_not_in_iPSC_hg19-DNaseSeqBG_{TF}-kmer_matches.txt
+The AUC results are in:
+testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_not_in_iPSC_hg19-DNaseSeqBG_benchmark-kmer.txt
+
+Calculating medians of glossary output
+The median AUROC and corresponding other statistics for pairwise files are in: testing/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed/DNASE.K562.merged_ref_hg19_ENCODE-DREAM_DNase_relaxed_hg19_DNaseSeqBG_benchmark-kmer_median.txt
+
+4140.75user 595.75system 1:26:52elapsed 90%CPU (0avgtext+0avgdata 2061612maxresident)k
+7426088inputs+532320outputs (2657major+61461418minor)pagefaults 0swaps
+
+

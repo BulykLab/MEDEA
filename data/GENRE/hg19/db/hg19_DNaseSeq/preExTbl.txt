@@ -1,0 +1,4 @@
+criteriaName	subgroups	binType	#bins	fileLoc
+repeats		0,(0-100]	2	data/GENRE/hg19/criteria/hg19_repeats.bed
+TSS		0,(0-100]	2	data/GENRE/hg19/criteria/hg19_TSS.bed
+seq	G,C,CG	equal	20	data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa

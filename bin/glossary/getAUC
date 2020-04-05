@@ -1,0 +1,243 @@
+#!/usr/bin/env Rscript
+
+AUC <- function(x, y){  sum(diff(x)*rollmean(y,2)) }
+
+to_get_motif_enrichment_values <- function(  Motif.in.peaks.matrix, Motif.in.CTRL.matrix ){
+ 
+  all_score_vec = c( Motif.in.peaks.matrix$Motif_Score ,  Motif.in.CTRL.matrix$Motif_Score )
+  Motif.thr.score.seq  <- quantile( all_score_vec,  probs = seq(0,1,0.02) )
+  
+  Motif.real.count.vec <-   rowSums( sapply( Motif.in.peaks.matrix$Motif_Score , ">", Motif.thr.score.seq) , na.rm=T)
+  Motif.CTRL.count.vec <-  rowSums( sapply(   Motif.in.CTRL.matrix$Motif_Score , ">", Motif.thr.score.seq), na.rm=T )  
+  
+  Motif.Specificity <- c( 0, (nrow( Motif.in.CTRL.matrix)-Motif.CTRL.count.vec ) /nrow( Motif.in.CTRL.matrix) )
+  Motif.Sensitivity <- c(1, Motif.real.count.vec/nrow( Motif.in.peaks.matrix) ) 
+  Motif.auroc <- AUC( (1 -Motif.Sensitivity) , Motif.Specificity )
+  
+  MWU_Motif_P_value <- wilcox.test(  Motif.in.peaks.matrix$Motif_Score ,   Motif.in.CTRL.matrix$Motif_Score , paired=T )$p.value
+  if( is.nan(MWU_Motif_P_value) ) MWU_Motif_P_value <- 1
+  
+  Motif.thr.score_quantile <- which.max( abs( Motif.real.count.vec - Motif.CTRL.count.vec ) )
+  Motif.thr.score <- Motif.thr.score.seq[Motif.thr.score_quantile]
+  Motif.in.peaks.submatrix <- Motif.in.peaks.matrix[  Motif.in.peaks.matrix$Motif_Score >  Motif.thr.score , ]
+  Motif_Position_vec= abs(0.5*( Motif.in.peaks.submatrix$Motif_Start + Motif.in.peaks.submatrix$Motif_End -nchar(as.vector(Motif.in.peaks.submatrix$Full_Sequence ) ) ) )
+  names( Motif_Position_vec ) <- rownames( Motif.in.peaks.submatrix )
+  peak_median_pos <- median(    Motif_Position_vec , na.rm=T)
+  
+  Motif.in.CTRL.submatrix <- Motif.in.CTRL.matrix[  Motif.in.CTRL.matrix$Motif_Score >  Motif.thr.score , ]
+  Motif_Position_CTRL_vec = abs(0.5*( ( Motif.in.CTRL.submatrix$Motif_Start + Motif.in.CTRL.submatrix$Motif_End - nchar( as.vector (Motif.in.CTRL.submatrix$Full_Sequence) ) ) ) )
+  names(Motif_Position_CTRL_vec ) <- rownames(  Motif.in.CTRL.submatrix )
+  CTRL_median_pos <- median(   Motif_Position_CTRL_vec, na.rm=T)
+  
+  pos_test <- NA
+  if( sum( !is.na( Motif_Position_vec ))!=0 & sum( !is.na( Motif_Position_CTRL_vec ))!=0)  
+  {pos_test <- wilcox.test(  Motif_Position_vec, Motif_Position_CTRL_vec )$p.value}
+  
+  output_list <- list( c( AUROC= Motif.auroc , AUROC_P.v=MWU_Motif_P_value, AUROC_adj.P.v=NA, Matched_FG=Motif.real.count.vec[[Motif.thr.score_quantile]], Matched_BG=Motif.CTRL.count.vec[[Motif.thr.score_quantile]], 
+                          motif_dist_from_FG_summit=peak_median_pos  ,   motif_dist_from_BG_summit=CTRL_median_pos,  Center_P.v=pos_test , Center_adj.P.v=NA , Motif_score_threshold=  Motif.thr.score[[1]] ),
+                       peak_summit_distance=Motif_Position_vec, CTRL_summit_distance=Motif_Position_CTRL_vec )
+  return( output_list  )
+} 
+
+
+to_get_PWM_match_info <- function( single_sequence, single_PWM ){
+  pwm_matrix <- log( (single_PWM+0.0001)/0.25)  
+  mwp_matrix <-  reverseComplement( pwm_matrix ) 
+  matches_FW <-   matchPWM( pwm_matrix ,  single_sequence , min.score = minimal.score , with.score = T  ) 
+  scores_FW <- matches_FW@elementMetadata$score
+  matches_RV <-      matchPWM( mwp_matrix, single_sequence , min.score= minimal.score, with.score = T  )  
+  scores_RV <-   matches_RV@elementMetadata$score
+  score_vec <- c( scores_FW  ,  scores_RV ,  minimal.score  )
+  sequence_score  <-            max(  score_vec  ) 
+  if(sequence_score > minimal.score ) 
+  {
+    motif_start <-  c( matches_FW@ranges@start,  matches_RV@ranges@start, NA ) [which.max(  score_vec )]
+    motif_end <- motif_start + c( matches_FW@ranges@width ,matches_RV@ranges@width, NA ) [which.max(  score_vec )]-1
+    motif_sequence <- subseq(single_sequence, motif_start , motif_end )
+    output_df <- data.frame(sequence_score,  motif_start ,motif_end , motif_sequence, stringsAsFactors=FALSE  )
+  } else {output_df <- data.frame( minimal.score ,  NA ,NA , NA, stringsAsFactors=FALSE  ) }
+  return( output_df    )
+}
+
+code_for_single_TF_PWM_enrichment <- function( PWM_matrix , foreground_sequences , background_sequences ){  
+  
+  weighted.PWM.in.peaks.matrix   <- t( sapply(  foreground_sequences, to_get_PWM_match_info , PWM_matrix ,   USE.NAMES=F))
+  Motif_Score_vec = unlist(weighted.PWM.in.peaks.matrix[,1])
+  Motif_Start_vec = unlist(weighted.PWM.in.peaks.matrix[,2])
+  Motif_End_vec = unlist(weighted.PWM.in.peaks.matrix[,3])
+  Motif_Sequence_vec = unlist(weighted.PWM.in.peaks.matrix[,4])
+  #cat("single TF code Motif Seq vec:\n",Motif_Sequence_vec)
+  #Dataframe with the info of (Motif_Score, Motif_Start, Motif_End, Motif_Sequence, Full_Sequence) 
+  #for each of the input forground sequence
+  PWM.in.peaks.df <- data.frame( Motif_Score=Motif_Score_vec , Motif_Start=Motif_Start_vec,  Motif_End=Motif_End_vec , Motif_Sequence=Motif_Sequence_vec, Full_Sequence=foreground_sequences )
+  
+  weighted.PWM.in.CTRL.matrix  <- t( sapply(  background_sequences, to_get_PWM_match_info , PWM_matrix ,     USE.NAMES=F))
+  Motif_Score_CTRL_vec =  unlist(weighted.PWM.in.CTRL.matrix[, 1 ] )
+  Motif_Start_CTRL_vec =  unlist(weighted.PWM.in.CTRL.matrix[, 2 ] )
+  Motif_End_CTRL_vec =  unlist(weighted.PWM.in.CTRL.matrix[, 3 ] )
+  Motif_Sequence_CTRL_vec =  unlist(weighted.PWM.in.CTRL.matrix[, 4 ])
+  #Dataframe with the info of (Motif_Score, Motif_Start, Motif_End, Motif_Sequence, Full_Sequence) 
+  #for each of the input background sequence
+  PWM.in.CTRL.df <- data.frame( Motif_Score=Motif_Score_CTRL_vec , Motif_Start=Motif_Start_CTRL_vec,  Motif_End=Motif_End_CTRL_vec , Motif_Sequence=Motif_Sequence_CTRL_vec, Full_Sequence=background_sequences )
+  
+  out_list <- to_get_motif_enrichment_values( PWM.in.peaks.df, PWM.in.CTRL.df )
+  
+  output_list <- list( PWM_analysis=out_list[[1]],  Matched_motifs= PWM.in.peaks.df, Motif_to_summit_distances =out_list[[2]], Matched_CTRL_motifs= PWM.in.CTRL.df, Motif_to_summit_CTRL_distances =out_list[[3]] )
+  return( output_list )
+  
+}
+
+to_get_kmer_match_info <- function( kmer_score_vector, full_sequences ){
+  kmer_vector <- names( kmer_score_vector   )
+  
+  kmer.in.sequence.matrix  <- t( sapply(  kmer_vector , grepl, full_sequences ) ) 
+  score.in.sequence.matrix <-  kmer.in.sequence.matrix* kmer_score_vector
+  score.in.sequence.matrix  <- ifelse( score.in.sequence.matrix ==0, minimal.score ,  score.in.sequence.matrix )
+  
+  weighted.kmer.in.sequence.vec <- apply(  score.in.sequence.matrix, 2, max )
+  
+  matched_sequence_label_vec <-  weighted.kmer.in.sequence.vec >  minimal.score 
+  Motif_Score_vec <- ifelse( matched_sequence_label_vec  , weighted.kmer.in.sequence.vec,  0 )
+  best_kmer_vec <-  ifelse(  matched_sequence_label_vec , apply(  score.in.sequence.matrix, 2, which.max ), NA)
+  Motif_Sequence_vec <- ifelse( is.na( best_kmer_vec), "XXX", kmer_vector[best_kmer_vec ])
+  kmer.in.sequence.position.matrix  <-  t( sapply(  kmer_vector , regexpr  , full_sequences )  )    
+  relevant_start_peaks_vec <- kmer.in.sequence.position.matrix[  cbind( best_kmer_vec  [ matched_sequence_label_vec ], which( matched_sequence_label_vec ) )]
+  Motif_Start_vec <- rep(NA,times=length(full_sequences))
+  Motif_Start_vec[matched_sequence_label_vec] <-   relevant_start_peaks_vec
+  Motif_End_vec <- Motif_Start_vec + nchar(Motif_Sequence_vec)
+  output_df <- data.frame( Motif_Score=Motif_Score_vec , Motif_Start=Motif_Start_vec,  Motif_End=Motif_End_vec , Motif_Sequence=Motif_Sequence_vec, Full_Sequence=full_sequences )
+  return( output_df    )
+}
+
+code_for_single_kmer_module_enrichment <- function(  kmer_module_vec , foreground_sequences , background_sequences  ){
+  
+  
+  kmer_FW <- names( kmer_module_vec )
+  rev_kmer_module_vec <- kmer_module_vec
+  names( rev_kmer_module_vec) <- kmer_RV <- as.character( reverseComplement(    DNAStringSet(kmer_FW)  ) )
+  nonredundant_rev_kmer_module_vec <- rev_kmer_module_vec[kmer_RV[kmer_FW!=kmer_RV]]
+  unique_kmer_E_score_vector <- c( kmer_module_vec, nonredundant_rev_kmer_module_vec )
+  
+  kmers.in.peaks.df <- to_get_kmer_match_info( unique_kmer_E_score_vector, foreground_sequences  )
+  kmers.in.CTRL.df <-  to_get_kmer_match_info( unique_kmer_E_score_vector, background_sequences  )
+  
+  out_list <- to_get_motif_enrichment_values( kmers.in.peaks.df, kmers.in.CTRL.df )
+  
+  output_list <- list( kmer_analysis=out_list[[1]],  Matched_motifs= kmers.in.peaks.df, kmer_to_summit_distances =out_list[[2]],  Matched_CTRL_motifs=   kmers.in.CTRL.df , kmer_to_summit_CTRL_distances =out_list[[3]]  )
+  return( output_list )
+}
+
+
+
+
+library(Biostrings)
+library(zoo)
+
+#changed 5/14/19
+# the value minimal.score should be asked to the users, but we can put it by default to 0
+#minimal.score  = 0
+
+args <- commandArgs(TRUE)
+#print(args)
+
+FG_full <- readLines(args[2])
+FG <- grep("^[^>]",FG_full,value=TRUE)
+
+BG_full <- readLines(args[3])
+BG <- grep("^[^>]",BG_full,value=TRUE)
+
+if (args[4]=="pwm"){
+	pwm <- read.table(args[1])
+	pwm <- t(pwm)
+	#print(pwm)
+	minimal.score  = 0
+	ll<-code_for_single_TF_PWM_enrichment( pwm,FG,BG )
+}
+if (args[4]=="kmer"){
+	x <-read.table(args[1])
+	kmer<-x[,2]
+	names(kmer)<-x[,1]
+	minimal.score  = 0.3
+	ll<-code_for_single_kmer_module_enrichment(kmer,FG,BG )
+}
+motifCutoff <- ll[[1]][10]
+
+#save(ll,file="Rout.Rdata")
+#changed output directory to args[3] instead of args[2] so the multiple background wouldn't write to the same directory and I could compress it once one nesting scheme had finished.
+y=unlist(strsplit(args[3],"[.]"))
+d=paste(sep="",paste(y[-length(y)],collapse="."),"_motifMatches/")
+dir.create(d,showWarnings=FALSE)
+x=unlist(strsplit(basename(args[3]),"[.]"))
+f=paste(sep="",paste(x[-length(x)],collapse="."),"_",gsub('\\.','-',basename(args[1])),"_matches.txt")
+cat(sep="","Matches for ",basename(args[1])," can be found in:\n",d,f,"\n")
+
+if (args[4]=="pwm"){
+	cat("Match scores are PWM scores.\n")
+}
+if (args[4]=="kmer"){
+	cat("Match scores are Escores.\n")
+}
+
+for( index_FG_sequence in 1:length(FG))
+{
+  #if (!is.na(ll$Matched_motifs[[index_FG_sequence,"Motif_Start"]])){
+  if (ll$Matched_motifs[[index_FG_sequence,"Motif_Score"]]>motifCutoff){
+    x=paste( sep="", ">Best_Motif_in_Sequence_", index_FG_sequence, "_Score_",round( ll$Matched_motifs[[index_FG_sequence,"Motif_Score"]], digits=2),":bp", ll$Matched_motifs[[index_FG_sequence,"Motif_Start"]],"-bp",ll$Matched_motifs[[index_FG_sequence,"Motif_End"]])
+    if (!exists("arr")){
+      arr=rbind(x)
+    }
+    else{
+      arr=rbind(arr,x)
+    }
+    arr=rbind(arr,paste(sep="",ll$Matched_motifs[[index_FG_sequence,"Motif_Sequence"]]))
+  }
+  else{
+    cat("sequence",index_FG_sequence,"did not find a motif match.\n")
+  }
+  
+}
+if (exists("arr")){
+	write.table(arr,file=paste(sep="",d,f),quote=FALSE,row.names=FALSE,col.names=FALSE)
+}
+
+cat("\n")
+cat("AUROC:",ll[[1]][1],"\n")
+cat("p-val:",ll[[1]][2],"\n")
+cat("number of FG with PWM:",ll[[1]][4],"\n")
+cat("number of BG with PWM:",ll[[1]][5],"\n")
+cat("median distance from peak in FG:",ll[[1]][6],"\n")
+cat("median distance from peak in BG:",ll[[1]][7],"\n")
+cat("position test:",ll[[1]][8],"\n")
+cat("Optimal score for discriminative motif matching between FG and BG peaks:",ll[[1]][10],"\n")
+cat("\n")
+
+
+x=unlist(strsplit(basename(args[3]),"[.]"))
+
+#motif score, position, and sequenced matched are in the matches file already and the full FG sequence are in the fasta files...
+f=paste(sep="",paste(x[-length(x)],collapse="."),"_",gsub('\\.','-',basename(args[1])),"_FGmotifs.txt")
+write.table(ll[[2]],file=paste(sep="",d,f),quote=FALSE,row.names=FALSE,col.names=FALSE)
+cat(sep="","FG Motifs (dataframe) for ",basename(args[1])," can be found in:\n",d,f,"\n\n")
+
+#This only has one column that isn't 500 lines, so what are the distances matched too?
+f=paste(sep="",paste(x[-length(x)],collapse="."),"_",gsub('\\.','-',basename(args[1])),"_FGdist.txt")
+write.table(ll[[3]],file=paste(sep="",d,f),quote=FALSE,row.names=TRUE,col.names=FALSE)
+cat(sep="","FG Distances (dataframe) for ",basename(args[1])," can be found in:\n",d,f,"\n\n")
+
+#maybe do a matches file as original, but with BG
+f=paste(sep="",paste(x[-length(x)],collapse="."),"_",gsub('\\.','-',basename(args[1])),"_BGmotifs.txt")
+write.table(ll[[4]],file=paste(sep="",d,f),quote=FALSE,row.names=FALSE,col.names=FALSE)
+cat(sep="","BG Motifs (dataframe) for ",basename(args[1])," can be found in:\n",d,f,"\n\n")
+
+#same as FGdist.
+f=paste(sep="",paste(x[-length(x)],collapse="."),"_",gsub('\\.','-',basename(args[1])),"_BGdist.txt")
+write.table(ll[[5]],file=paste(sep="",d,f),quote=FALSE,row.names=TRUE,col.names=FALSE)
+cat(sep="","FG Distances (dataframe) for ",basename(args[1])," can be found in:\n",d,f,"\n\n")
+
+
+cat("\n")
+y<-ll[[1]]
+#cat(cat(y[!is.na(y)],sep="\t"),"\n")
+# Katy, also in the next line the 10th variable should not be skipped
+cat(cat(y[-c(3,9)],sep="\t"),"\n")
+#########################

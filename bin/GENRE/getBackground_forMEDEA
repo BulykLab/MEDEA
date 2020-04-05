@@ -1,0 +1,339 @@
+#!/usr/bin/env python
+
+try:
+    from pysqlite2 import dbapi2 as sqlite3
+except ImportError:
+    import sqlite3
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, dirname, basename, realpath
+import os
+import re
+from helperScripts import GenerateTempFilename, getOneShellOutput, ckIn, parseNest, getAttr, isInt
+import time
+import random
+import csv
+
+def getRand():
+    return random.random()
+
+srpDir = dirname(realpath(__file__))+"/"
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('bed', metavar = 'bed', help='FG BED file')
+arg_obj.add_argument('db', metavar = 'db', help='BG pool SQLite db file')
+arg_obj.add_argument('spec', metavar = 'spec', help='specifications file')
+arg_obj.add_argument('-nest', metavar = 'nest', help='if given, a nested table will be created on top of the independently binned table.')
+arg_obj.add_argument('out', metavar = 'out', help='output BG BED file')
+arg_obj.add_argument('genome', metavar = 'genome', help='genome fasta file')
+arg_obj.add_argument('-cull', action='store_true', help='use culled table')
+arg_obj.add_argument('-seed', metavar='seed', help='random seed')
+arg_obj.add_argument('-mult', metavar='multiplicity', help='Positive integer. If given, the given number of background sequences will be retrieved per foreground sequence. If not given, 1 background sequence will be retrieved for each foreground')
+arg_obj.add_argument('-black', metavar="black", help='BED regions to add to the blacklist')
+args = arg_obj.parse_args()
+
+
+###########################################
+# Argument checking
+
+realTable = basename(args.db).rsplit('.',1)[0]
+binTable = basename(args.spec).rsplit('.',1)[0]
+
+print "Start Argument Checking: %s"%(time.strftime("%c"))
+if not isfile(args.db) or not isfile(args.spec) or not isfile(args.bed) or not isfile(args.genome):
+    raise Exception("At least one of the given files doesn't exist. Try again.")
+
+ret = ckIn(args.spec,False)
+
+if 'seq' in ret[0]:
+    print ret[0]
+else:
+    nucToCt = ret[0].split(',')
+
+if not ret[1]:
+    raise Exception('Your spec file is not okay. Please try again.')
+else:
+    print "Spec file validated!: %s"%args.spec
+
+criteriaNames = ret[2]
+
+temp = GenerateTempFilename()
+ret = getOneShellOutput("ls %s"%(temp))
+if len(ret[1])!=0:
+    raise Exception('The working directory does not have read/write privileges. Please change the permissions or call this script from a directory where you do have read/write privileges.')
+else:
+    getOneShellOutput("rm %s"%temp)
+
+if not isfile(args.genome+".fai"):
+    ret = getOneShellOutput("samtools faidx %s"%(args.genome))
+    if len(ret[1])==0:
+        print "made fai file for fasta file"
+    else:
+        raise Exception("ERROR: samtools didn't create the genome fasta index file correctly.")
+
+if args.mult is not None:
+	if not isInt(args.mult):
+		raise Exception("The multiplicity argument must be a positive integer.")
+	else:
+		mult=int(args.mult)
+		if mult<=0:
+			raise Exception("The multiplicity argument must be a positive integer.")
+else:
+	mult=1
+
+#blacklist addition - KW 6/20/19
+if args.black is not None and not isfile(args.black):
+	raise Exception("You have indicated that you'd like to amend the blacklist, but the file you have given does not exist. Please try again.")
+
+###########################################
+# Calculations
+
+db = sqlite3.connect('%s'%args.db)
+cursor = db.cursor()
+
+#verify t1 and t2 are in database:
+ret = cursor.execute("select distinct tbl_name from sqlite_master;").fetchall()
+tblNames = [n[0] for n in ret]
+if binTable not in tblNames or realTable not in tblNames:
+    db.rollback()
+    db.close()
+    raise Exception("The specified tables aren't in your db file. Try again.")
+
+ret = cursor.execute("select * from %s limit 1;"%realTable)
+realNames = [description[0] for description in ret.description]
+
+ret = cursor.execute("select * from %s limit 1;"%(binTable+"_bins"))
+binNames = [description[0] for description in ret.description]
+
+if [x for x in binNames if x not in realNames]!=['length']:
+    db.rollback()
+    db.close()
+    raise Exception("There is at least one criteria in the independently binned table that isn't in the real table. That should not have happened if you ran makeTable first.")
+
+if args.nest is not None:
+	ret = parseNest(args.nest,binNames,binTable,args.cull)
+	
+	if ret[4]!=[]:
+		db.rollback()
+		db.close()
+		raise Exception("The given nesting scheme failed for the following reason(s): %s"%(", ".join(ret[4])))
+	
+	#quart = True #quart is always true after making the bin table structured like the nest tables
+	critB = ret[1]
+	critQ = ret[2]
+	table = ret[3][0]
+	t1 = ret[3][1]
+	
+	if table not in tblNames or t1 not in tblNames:
+		db.rollback()
+		db.close()
+		raise Exception("Nesting table(s) not in database.")
+	
+	#verify table is linked to t1
+	sql = cursor.execute("select sql from sqlite_master where type='table' and tbl_name='%s'"%(table)).fetchone()[0]
+	ret = re.search(r"foreign\skey\s+\(qID\)\sreferences\s+(.*?)\(ID\)",sql,re.IGNORECASE)
+	if ret is None or (ret is not None and (ret.group(1) not in tblNames or t1 != ret.group(1))):
+		db.rollback()
+		db.close()
+		raise Exception("The appropriate linked table for the quart table was not linked appropriately.")
+
+	ret = cursor.execute("select * from %s limit 1;"%t1)
+	qNames = [description[0] for description in ret.description]
+	
+	flagA=False
+	for x in critQ:
+		if not (x+"s" in qNames and x+"e" in qNames):
+			print "%s should be referenced as a quartile criteria."%(x)
+			flagA=True
+	for x in critB:
+		if not (x in qNames):
+			print "%s should be referenced as an independently binned criteria."%(x)
+			flagA=True
+	if flagA:
+		db.rollback()
+		db.close()
+		raise Exception("At least one of your spec fields isn't in your db file. Try again.")
+
+else:
+    #quart = True #again, quart always true now, so I took it out of this script.
+    table=binTable
+    t1=table+"_bins"
+    if t1 not in tblNames:
+        db.rollback()
+        db.close()
+        raise Exception("Nesting bin table not in database.")
+    if args.cull:
+        table+="_culled"
+        if table not in tblNames:
+            db.rollback()
+            db.close()
+            raise Exception('Culled table does not exist in this database. Make it with makeTable.')
+    critB = criteriaNames.keys()
+    if [x for x in critB if x not in binNames]!=[]:
+        db.rollback()
+        db.close()
+        raise Exception("Can't have a criterion in the Spec File that isn't in the binTable.")
+    critQ=[]
+
+#get critB in index order
+critB = [x for x in binNames if x in critB]
+
+#the output file from getAttributes will have the binned criteria binned and the real criteria actual values.
+expectedOutput = GenerateTempFilename() #randomized for parallel purposes
+print "At %s, starting attribute fetching."%(time.strftime("%c"))
+ret = getAttr(False, args.bed, args.spec, nucToCt, critB, critQ, expectedOutput)
+print "At %s, done attribute fetching."%(time.strftime("%c"))
+if not isfile(expectedOutput) or ret!="":
+	if isfile(expectedOutput):
+		getOneShellOutput('rm %s'%(expectedOutput))
+	db.rollback()
+	db.close()
+	raise Exception("Attributes file for bed file not found. getAttr function errored out with: %s"%(ret))
+
+#blacklist starting point - BGpool intersect FG to avoid any overlap
+BEDfile = args.db.rsplit('.',1)[0]+'.bed'
+if not isfile(BEDfile):
+	ret = cursor.execute('select chr,start,stop,"BG"||ID from %s'%(realTable)).fetchall()
+	with open(BEDfile, "wb") as f:
+		csv_writer = csv.writer(f,delimiter='\t',lineterminator="\n")
+		csv_writer.writerows(ret)
+	getOneShellOutput("chmod 444 %s"%BEDfile)
+outExpectedOutput = GenerateTempFilename() #again, to make parallelization okay
+ret = getOneShellOutput("cut -f1,2,3 %s | sort -k1,1 -k2,2n > %s"%(args.bed,outExpectedOutput)) #need the sorted option
+if not isfile(outExpectedOutput) or len(ret[1])!=0:
+	getOneShellOutput('rm %s'%(expectedOutput))
+	if isfile(outExpectedOutput):
+		getOneShellOutput('rm %s'%(outExpectedOutput))
+	db.rollback()
+	db.close()
+	raise Exception("Error getting sorted FG BED file.")
+ret = getOneShellOutput("intersectBed -a %s -b %s -sorted | cut -f4 | cut -c3-"%(BEDfile, outExpectedOutput))
+if len(ret[1])!=0:
+	getOneShellOutput("rm %s %s"%(expectedOutput,outExpectedOutput))
+	db.rollback()
+	db.close()
+	raise Exception("Error getting blacklist: %s"%(ret[1]))
+black = set(ret[0].split("\n"))
+
+#blacklist addition - KW 6/20/19
+if args.black is not None:
+    ret = getOneShellOutput("cut -f1,2,3 %s | sort -k1,1 -k2,2n > %s"%(args.black,outExpectedOutput)) #need the sorted option
+    if not isfile(outExpectedOutput) or len(ret[1])!=0:
+        getOneShellOutput("rm %s %s"%(expectedOutput,outExpectedOutput))
+        db.rollback()
+        db.close()
+        raise Exception("Error getting sorted blacklist addition BED file.")
+    ret = getOneShellOutput("intersectBed -a %s -b %s -sorted | cut -f4 | cut -c3-"%(BEDfile, outExpectedOutput))
+    if len(ret[1])!=0:
+        getOneShellOutput("rm %s %s"%(expectedOutput,outExpectedOutput))
+        db.rollback()
+        db.close()
+        raise Exception("Error getting blacklist addition: %s"%(ret[1]))
+    blackAdd = set(ret[0].split("\n"))
+    black = black | blackAdd
+
+black.discard('')
+black = list(black)
+
+#seed the random generator for regeneration checks
+if args.seed is not None:
+    seed = str(args.seed)
+else:
+	try:
+		#high quality random number as seed.
+		seed=os.urandom(16) #tried keeping the seed as this, but it was complicated to get the seed to register correctly in subsequent runs
+		random.seed(seed)
+		seed=str(random.random())
+	except NotImplementedError:
+		seed = str(random.random())
+print "SEED: %s"%(seed)
+random.seed(seed)
+db.create_function("rand", 0, getRand)
+
+print "get regions start: %s"%(time.strftime("%c"))
+qIDs=[]
+failed=False
+OUT=open(args.out,'w')
+IN=open(expectedOutput,'r')
+for i,line in enumerate(IN):
+	tabs=line.strip().split("\t")
+	if i==0:
+		header = tabs
+		
+		idx = []
+		firstPart = []
+		for j,x in enumerate(header):
+			if x in critB:
+				firstPart.append("%s='%%s'"%x)
+				idx.append(j)
+			if x in critQ:
+				firstPart.extend(["%ss<=%%s"%x,"%se>%%s"%x])
+				idx.extend([j,j])
+			
+	else:
+		crit = []
+		for j in xrange(len(idx)):
+			crit.append(firstPart[j]%(tabs[idx[j]]))
+		qIDQ = int(cursor.execute("select ID from %s where %s;"%(t1," and ".join(crit))).fetchone()[0])
+		query = "select ID,chr,start,stop from %s where ID in (select ID from %s where qID=%s and ID not in (%s) order by rand() limit %s);"%(realTable,table,qIDQ,",".join(map(str,black)),mult)
+		r = cursor.execute(query).fetchall()
+		
+		errMsg = True
+		for rep in xrange(mult):
+			if r==None or (r is not None and len(r)<rep+1):
+				if errMsg:
+					print "Not enough results were found for region at line %s (qID=%s)"%(i,qIDQ)
+					errMsg=False
+				fin=["NA","NA","NA"]
+				failed=True
+			else:
+				black.append(str(r[rep][0]))
+				fin = r[rep][1:]
+				qIDs.append(qIDQ)
+			
+			OUT.write("\t".join(map(str,fin))+"\n")
+		
+		if (i-1)%10==0:
+			print "finished query %s at %s"%(i-1, time.strftime("%c"))
+
+IN.close()
+OUT.close()
+print "get regions stop: %s"%(time.strftime("%c"))
+
+
+if not failed:
+	ret = getAttr(False, args.out, args.spec, nucToCt, critB, critQ, outExpectedOutput)
+	if not isfile(outExpectedOutput) or ret!="":
+		getOneShellOutput("rm %s"%(expectedOutput))
+		if isfile(outExpectedOutput):
+			getOneShellOutput("rm %s"%(outExpectedOutput))
+		db.rollback()
+		db.close()
+		raise Exception("Attributes file for output not found. getAttr function errored out with: %s"%(ret))
+	
+	outQids = []
+	IN = open(outExpectedOutput,'r')
+	for i,line in enumerate(IN):
+		tabs=line.strip().split("\t")
+		#is order guaranteed in getAttr? Yes, arrays only, no sets/dicts.
+		if i!=0:
+			crit=[]
+			for j in xrange(len(idx)):
+				crit.append(firstPart[j]%(tabs[idx[j]]))
+			query = "select ID from %s where %s"%(t1," and ".join(crit))
+			outQids.append(cursor.execute(query).fetchone()[0])
+	IN.close()
+	
+	if qIDs!=outQids:
+		getOneShellOutput("rm %s %s"%(expectedOutput,outExpectedOutput))
+		raise Exception("ERROR: bin discrepancy between FG and BG!")
+	else:
+		getOneShellOutput("fastaFromBed -fi %s -bed %s -fo %s"%(args.genome,args.out,args.out.rsplit('.',1)[0]+'.fa'))
+else:
+    print "Not validating output as at least one query failed, which created row(s) of NAs in BG file."
+
+getOneShellOutput("rm %s %s"%(expectedOutput,outExpectedOutput))
+print "SEED: %s"%(seed)
+
+db.rollback()
+db.close()

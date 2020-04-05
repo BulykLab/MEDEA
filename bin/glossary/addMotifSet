@@ -1,0 +1,218 @@
+#!/usr/bin/env python
+
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, isdir, dirname, basename, realpath
+from os import makedirs, listdir
+import re
+
+homeDir = dirname(realpath(__file__))+"/"
+dnld = homeDir+"../../downloads.txt"
+
+def getOneShellOutput(cmd):
+	#print cmd
+	from subprocess import call, PIPE, Popen
+	job_process = Popen(cmd, shell=True, stdout = PIPE, stderr = PIPE)
+	out_stream, err_stream = job_process.communicate()
+	#if len(err_stream)!=0:
+	#    print err_stream
+	return [out_stream.strip(),err_stream]
+
+def getRectLen(arr):
+    if not isinstance(arr,list) or len(arr)==0 or not isinstance(arr[0],list) or len(arr[0])==0:
+        return -1
+    
+    lengths = set(len(i) for i in arr)
+    if len(lengths) == 1:
+        return lengths.pop()
+    else:
+        return -1
+
+def isNum(x):
+    try:
+        float(x)
+    except ValueError:
+        return False
+    return True
+
+def sequential(c):
+	try:
+		it=(int(x) for x in c)
+		first=next(it)
+		return all(a == b for a, b in enumerate(it, first + 1))
+	except ValueError:
+		return False
+
+def printArr(y):
+	if not isinstance(y,list) or len(y)==0 or not isinstance(y[0],list) or len(y[0])==0:
+		return
+	
+	for x in y:
+		print "\t".join(map(str,x))
+	print "\n"
+
+def writePWM(arr,name,fl):
+	import csv
+	import decimal
+	import math
+	
+	decimal.getcontext().prec=5
+	
+	print name
+	
+	if len(arr)>0:
+		cols = getRectLen(arr)
+		rows = len(arr)
+		bases = ['A','C','G','T']
+		if cols!=-1:
+			if rows==4 or rows==5:
+				firstCol = [arr[x][0] for x in xrange(rows)]
+				if firstCol==bases or firstCol[1:]==bases or cols>5 or cols<4:
+					arr = [[row[i] for row in arr] for i in range(cols)]
+					temp = cols; cols = rows; rows = temp
+					print "Transposing %s"%(name)
+			
+			newArr=[]
+			flag=False
+			skip=False
+			if arr[0]==bases:
+				flag=True
+			elif arr[0][1:]==bases:
+				flag=True
+				skip=True
+			elif rows>5 or rows<4:
+				if cols==4:
+					newArr=[bases]
+				if cols==5:
+					newArr=[['']+bases]
+					skip=True
+				arr=newArr+arr
+				newArr=[]
+				flag=True
+			if flag:
+				for i,row in enumerate(arr):
+					if skip:
+						row=row[1:]
+					if row==bases:
+						newArr.append(['']+row)
+					else:
+						#print row
+						if [x for x in row if x<0]!=[]:
+							print "Must be a probability matrix with all non-negative values"
+							return
+						
+						s = sum(map(decimal.Decimal,row))
+						if math.fabs(s-decimal.Decimal("1"))>=math.pow(10,-2):
+							print "Positions must sum to 1.0"
+							return
+						else:
+							newArr.append([i]+row)
+				
+				with open(fl, "wb") as f:
+					csv_writer = csv.writer(f,delimiter='\t',lineterminator="\n")
+					csv_writer.writerows(newArr)
+				
+				print "Created file for %s"%(name)
+			else:
+				print "Couldn't identify PWM setup for %s"%(name)
+		else:
+			print 'The matrix for %s is not rectangular, so it is skipped.'%(name)
+	else:
+		print 'The matix for %s is nonexistant.'%(name)
+
+def writeKmer(arr,name,fl):
+	import re
+	import csv
+	if [i for i,x in enumerate(arr) if not (re.match('^[ACGT]+$',x[0]) and re.match('^[0-9\.]+$',x[1]))]==[]:
+		with open(fl, "wb") as f:
+			csv_writer = csv.writer(f,delimiter='\t',lineterminator="\n")
+			csv_writer.writerows(arr)
+		
+		print "Created file for %s"%(name)
+	else:
+		print "The kmer list did not match the oligo{spacer}E-score, i.e. [ACGT]+\t[0-9\.]+ setup needed."
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('motifs', metavar = 'motifs', help='Motifs - either file separated by >name or directory of single files')
+arg_obj.add_argument('type', metavar = 'type', help='kmer or pwm')
+arg_obj.add_argument('-description', metavar = 'description', help='description of motif set (for getGENRE.py -avail) - enclose in quotes if spaces')
+args = arg_obj.parse_args()
+
+if not isfile(args.motifs) and not isdir(args.motifs):
+	raise Exception('The motifs input must be either a file or a directory.')
+if args.type!='pwm' and args.type!='kmer':
+	raise Exception('The type input must be either "kmer" or "pwm".')
+
+ct=0
+if isfile(args.motifs):
+	newDir = homeDir+"../../data/glossary/motifs/"+basename(args.motifs).rsplit('.',1)[0]+'-'+args.type+'/'
+	if isdir(newDir):
+		raise Exception("A directory already exists with the name: %s\nPlease change the name of your motifs file and try again."%(newDir))
+	else:
+		print 'Making new directory for motifs.'
+		makedirs(newDir)
+	
+	IN = open(args.motifs,'r')
+	array = []; n=''
+	for i,line in enumerate(IN):
+		if line.startswith('>'):
+			if len(array)!=0:
+				ct+=1
+				if args.type=='pwm':
+					writePWM(array,n,newDir+n+".pwm")
+				elif args.type=='kmer':
+					writeKmer(array,n,newDir+n+".kmer")
+			
+			#--reset--
+			n = re.sub('[^A-Za-z0-9\.\-\_]','-',line.strip()[1:])
+			array=[]
+		else:
+			if not line.startswith("#") or line.strip()=='':
+				array.append(re.split('\s+',re.sub('[\:\|\[\]\"]','',line.strip()).strip()))
+				if array[-1]==['']:
+					array=array[:-1]
+	IN.close()
+	
+	if len(array)!=0:
+		ct+=1
+		if args.type=='pwm':
+			writePWM(array,n,newDir+n+".pwm")
+		elif args.type=='kmer':
+			writeKmer(array,n,newDir+n+".kmer")
+	
+elif isdir(args.motifs):
+	if args.motifs[-1]!='/':
+		args.motifs+='/'
+	
+	newDir = homeDir+"../../data/glossary/motifs/"+args.motifs.rsplit('/',2)[-2]+'-'+args.type+'/'
+	if isdir(newDir):
+		raise Exception("A directory already exists with the name: %s\nPlease change the name of your motifs directory and try again."%(newDir))
+	else:
+		print 'Making new directory for motifs: %s'%(newDir)
+		makedirs(newDir)
+	
+	for fl in listdir(args.motifs):
+		array=[]
+		if not fl.startswith('.'):
+			with open(args.motifs+fl,'r') as fi:
+				array=[re.split('\s+',re.sub('[\:\|\[\]]','',line.strip())) for line in fi]
+			n=re.sub('[^A-Za-z0-9\.\-\_]','-',fl.rsplit('.',1)[0])
+			
+			if len(array)!=0:
+				if args.type=='pwm':
+					writePWM(array,n,newDir+n+".pwm")
+				elif args.type=='kmer':
+					writeKmer(array,n,newDir+n+".kmer")
+				ct+=1
+
+ctF = int(getOneShellOutput("ls %s | wc -l"%(newDir))[0])
+
+if ct==ctF:
+	setName = basename(newDir[:-1])
+	if args.description is None:
+		args.description = "user defined motif set"
+	getOneShellOutput('printf "%s" >> %s'%(r"\t".join(map(str,[setName,"v1.0",args.description,args.motifs,"data/glossary/motifs/",r"\n"])),dnld))
+	print "Please reference your newly added motif set when using the glossary and glossary_GENRE commands as:\n%s"%(newDir.rsplit('/',2)[-2])
+else:
+	print "The motif set was not added correctly: the same number of valid motifs were not made into files. Deleting motif set."
+	getOneShellOutput("rm -r %s"%(newDir))

@@ -1,0 +1,7 @@
+zoo
+Biostrings
+methods
+BiocGenerics
+parallel
+IRanges
+XVector

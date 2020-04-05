@@ -1,0 +1,270 @@
+#!/usr/bin/env python
+
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, dirname, realpath, isdir, basename
+from os import listdir
+import re
+import csv
+import itertools
+import decimal
+
+def getOneShellOutput(cmd):
+	#print cmd
+	from subprocess import call, PIPE, Popen
+	job_process = Popen(cmd, shell=True, stdout = PIPE, stderr = PIPE)
+	out_stream, err_stream = job_process.communicate()
+	#if len(err_stream)!=0:
+	#    print err_stream
+	return [out_stream.strip(),err_stream]
+
+def isInt(x):
+    try:
+        int(x)
+        float(x)
+    except ValueError:
+        return False
+        
+    if float(x)!=int(x):
+        return False
+    
+    return True
+
+
+homeDir = dirname(realpath(__file__))+"/"
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('db', metavar = 'database', help='database ID')
+arg_obj.add_argument('FG', metavar = 'FG', help='FG BED file')
+arg_obj.add_argument('motifs', metavar = 'motifs', help='motifs ID')
+arg_obj.add_argument('ref', metavar = 'ref', help='MEDEA reference set ID')
+arg_obj.add_argument('-seed', metavar = 'seed', help='seed for randomization, preferably a number; default 123456789')
+arg_obj.add_argument('-outDir', metavar = 'outDir', help='output directory name. If not given, prefix will be the same as the FG file')
+arg_obj.add_argument('-best', metavar = 'best', help='comma-delimited list of column to sort on, ascending(asc)/descending(desc), number of regions, i.e. 4,desc,500')
+arg_obj.add_argument('-skip', metavar = 'skip', help='skip if cell line is the same; comma-delimited list of parse filename info: delimiter, index of 0-based split array; i.e. .,1')
+arg_obj.add_argument('-compress',action='store_true', help='if given, compress the matches directory outputted by the glossary.')
+args = arg_obj.parse_args()
+
+print "Verifying arguments"
+
+GENREexec = homeDir+"../GENRE/GENRE_forMEDEA"
+glossaryExec = homeDir+"../glossary/glossary"
+if not isfile(GENREexec) or not isfile(glossaryExec):
+	raise Exception("Both GENRE and glossary need to be installed for this command to run.")
+
+#make the subtractions - don't assume anything about cell types
+subtractDir = homeDir+"../../data/MEDEA/refSets/%s/"%(args.ref)
+if not isdir(subtractDir):
+	raise Exception("The MEDEA subtraction set you have chosen is not installed. Please install and try again.")
+
+motifDir = homeDir+"../../data/glossary/motifs/%s/"%(args.motifs)
+if not isdir(motifDir):
+	raise Exception("The motif set you have chosen is not installed. Please install and try again.")
+
+if args.motifs == "glossary-kmer" or args.motifs == "explorative-pwm":
+	threshFile = homeDir+"../../data/MEDEA/thresholds/thresholds_%s.txt"%(args.motifs)
+	if not isfile(threshFile):
+		print "Attempted to display MEDEA thresholds, but thresholds file does not exist."
+		
+	thresh = {}
+	IN = open(threshFile,'r')
+	for i,line in enumerate(IN):
+		tabs = line.strip().split('\t')
+		thresh[tabs[0]]=float(decimal.Decimal(tabs[1]))
+	IN.close()
+else:
+	threshFile = None
+
+dbDir = homeDir+"../../data/GENRE/%s/db/%s/"%(args.db.split('_')[0],args.db)
+if not isdir(dbDir):
+	raise Exception("The GENRE database you have chosen is not installed. Please install and try again.")
+
+#best
+if args.best is not None:
+	col, order, head = re.sub("\s+","",args.best).split(',')
+	if not isInt(col) or not isInt(head) or (order!="asc" and order!="desc"):
+		print col, order, head
+		raise Exception("The best flag is used incorrectly. Please fix and try again.")
+	else:
+		if order=="asc":
+			sortType = "n"
+		elif order=="desc":
+			sortType="rn"
+		sort = "-k%s,%s%s"%(col,col,sortType)
+
+#skip
+if args.skip is not None:
+	delim,idx = re.sub("\s+","",args.skip).split(',')
+	if not isInt(idx):
+		raise Exception("Index in skip argument must be an integer.")
+	
+#compress
+if args.compress:
+	compressExec = homeDir+"../glossary/compressMatches.py"
+	if not isfile(compressExec):
+		raise Exception("%s must exist for if using -compress."%(compressExec))
+
+if args.outDir is not None:
+	if args.outDir[-1]!='/':
+		args.outDir+='/'
+	subOutDir=args.outDir
+else:
+	subOutDir = args.FG.rsplit('.',1)[0]+'_ref_%s/'%(args.ref)
+if not isdir(subOutDir):
+	getOneShellOutput("mkdir %s"%(subOutDir))
+
+#copy FG to output directory to avoid parallelization issues
+cpFG = subOutDir+basename(args.FG)
+cmd = "cp %s %s"%(args.FG,subOutDir)
+ret = getOneShellOutput(cmd)
+if len(ret[1])!=0 or not isfile(cpFG):
+	getOneShellOutput("rm -r %s"%(subOutDir))
+	raise Exception("cpFG not copied correctly. Output directory deleted.")
+
+#verify FG is BED and linked to given genome
+genomePath = homeDir+'../../data/GENRE/%s/genome/'%(args.db.split('_')[0])
+arr = [x for x in listdir(genomePath) if x.endswith('.fa')]
+if len(arr)!=1:
+    raise Exception("The fasta file for the genome you've selected doesn't exist. Please download the appropriate genome from getGENRE.py and try again.")
+genomeFA = genomePath+arr[0]
+fastaOut = cpFG.rsplit('.',1)[0]+'.fa'
+cmd = "fastaFromBed -fi %s -bed %s -fo %s"%(genomeFA,cpFG,fastaOut)
+ret = getOneShellOutput(cmd)
+if not isfile(fastaOut) or len(ret[1])!=0:
+	getOneShellOutput("rm -r %s"%(subOutDir))
+	raise Exception("A fasta file of your FG did not finish correctly. Please verify that your file is in BED format and the given database's genome matches your file. Exitting and no output was made.\nError:\n%s"%(ret[1]))
+getOneShellOutput("rm %s"%(fastaOut)) #don't care so much if this fails.
+
+
+#also have to do the best of the original file too.
+print "Running original file"
+#copied from below.
+outFile = subOutDir+basename(cpFG).rsplit('.',1)[0]+'_best.bed'
+if args.best is not None:
+	cmd = "awk 'BEGIN{FS=\"%s\"} {if(NF!=0) print $0}' %s | sort %s | head -%s | cut -f1-3 | sort -k1,1 -k2,2n > %s"%(r"\t",cpFG,sort,head,outFile)
+else:
+	cmd = "awk 'BEGIN{FS=\"%s\"} {if(NF!=0) print $0}' %s > %s"%(r"\t",cpFG,outFile)
+ret = getOneShellOutput(cmd)
+if not isfile(outFile):
+	raise Exception("ERROR: getting best file %s\n%s"%(outFile,ret[1]))
+
+BGdir=subOutDir
+BG_matchDir = BGdir+basename(outFile).rsplit('.',1)[0]+"_%sBG_motifMatches"%(args.db.replace("_","-"))
+fa=BGdir+basename(outFile).rsplit('.',1)[0]+'.fa'
+
+extraArgs = ''
+if args.seed is not None:
+	extraArgs+=' -seed %s'%(args.seed)
+extraArgs+=' -BG %s'%(BGdir)
+extraArgs+=' -black %s'%(cpFG)
+extraArgs+=' '
+
+print "Building Background"
+cmd = "%s%s%s %s"%(GENREexec,extraArgs,args.db,outFile)
+ret = getOneShellOutput(cmd)
+if len(ret[1])!=0 or not isfile(fa) or not isfile(ret[0].split("\n")[-1]) or not isfile(ret[0].split("\n")[-1].rsplit('.',1)[0]+'.fa'):
+	raise Exception("GENRE command failed to produce the expected output. Error:\n%s"%(ret[1]))
+else:
+	print ret[0]
+	BG = ret[0].split("\n")[-1].rsplit('.',1)[0]+'.fa'
+
+print "Calculating Enrichment"
+ret = getOneShellOutput("%s %s %s %s"%(glossaryExec,fa,BG,args.motifs))
+if len(ret[1])!=0 or not isfile(ret[0].split("\n")[-1]):
+	raise Exception("glossary command failed to produce the expected output. Error:\n%s"%(ret[1]))
+else:
+	print ret[0]
+print ""
+
+if args.compress:
+	cmd = "python %s %s"%(compressExec,BG_matchDir)
+	ret = getOneShellOutput(cmd)
+	if len(ret[1])!=0:
+		print "ERROR compressing match directory %s.\n%s"%(BG_matchDir,ret[1])
+
+
+glossaryOutput = []
+print "Applying MEDEA"
+#assuming no cluster access. Should I make LSF and SLURM versions?
+for f in listdir(subtractDir):
+	if args.skip is not None and basename(cpFG).split(delim)[int(idx)]==f.rsplit('.',1)[0]:
+		print "SKIPPING ref file: %s"%(f)
+		continue
+	
+	outFile = subOutDir+basename(cpFG).rsplit('.',1)[0]+"_not_in_"+f.rsplit('.',1)[0]+".bed"
+	
+	if args.best is not None:
+		cmd = "subtractBed -a %s -b %s -A | sort %s | head -%s | cut -f1-3 | sort -k1,1 -k2,2n > %s"%(cpFG,subtractDir+f,sort,head,outFile)
+	else:
+		cmd = "subtractBed -a %s -b %s -A > %s"%(cpFG,subtractDir+f,outFile)
+	ret = getOneShellOutput(cmd)
+	if not isfile(outFile):
+		raise Exception("ERROR: subtracting %s\n%s"%(f,ret[1]))
+	
+	
+	BGdir=subOutDir
+	BG_matchDir = BGdir+basename(outFile).rsplit('.',1)[0]+"_%sBG_motifMatches"%(args.db.replace("_","-"))
+	fa=BGdir+basename(outFile).rsplit('.',1)[0]+'.fa'
+	
+	extraArgs = ''
+	if args.seed is not None:
+		extraArgs+=' -seed %s'%(args.seed)
+	extraArgs+=' -BG %s'%(BGdir)
+	extraArgs+=' -black %s'%(cpFG)
+	extraArgs+=' '
+	
+	print "Building Background"
+	cmd = "%s%s%s %s"%(GENREexec,extraArgs,args.db,outFile)
+	ret = getOneShellOutput(cmd)
+	if len(ret[1])!=0 or not isfile(fa) or not isfile(ret[0].split("\n")[-1]) or not isfile(ret[0].split("\n")[-1].rsplit('.',1)[0]+'.fa'):
+		raise Exception("GENRE command failed to produce the expected output. Error:\n%s"%(ret[1]))
+	else:
+		print ret[0]
+		BG = ret[0].split("\n")[-1].rsplit('.',1)[0]+'.fa'
+	
+	print "Calculating Enrichment"
+	ret = getOneShellOutput("%s %s %s %s"%(glossaryExec,fa,BG,args.motifs))
+	glosOut = ret[0].split("\n")[-1]
+	if len(ret[1])!=0 or not isfile(glosOut):
+		raise Exception("glossary command failed to produce the expected output. Error:\n%s"%(ret[1]))
+	else:
+		print ret[0]
+		with open(glosOut, 'r') as csvfile:
+			reader = csv.reader(csvfile, delimiter='\t')
+			for rowNum,row in enumerate(reader):
+				if rowNum!=0:
+					glossaryOutput.append(row)
+				else:
+					header=row
+	
+	if args.compress:
+		cmd = "python %s %s"%(compressExec,BG_matchDir)
+		ret = getOneShellOutput(cmd)
+		if len(ret[1])!=0:
+			print "ERROR compressing match directory %s.\n%s"%(BG_matchDir,ret[1])
+	
+	print ""
+
+if threshFile is not None:
+    header.append("MEDEAthresh")
+    header.append("overThresh")
+
+print "Calculating medians of glossary output"
+medFile = subOutDir+basename(cpFG).rsplit('.',1)[0]+"_ref_"+args.ref+"_"+args.db+"BG_"+args.motifs+"_median.txt"
+OUT = open(medFile,'w')
+OUT.write("\t".join(map(str,header))+'\n')
+data = sorted(glossaryOutput,key=lambda x:(x[0],x[1]))
+for k,g in itertools.groupby(data,lambda x:x[0]):
+    group = list(g)
+    med = group[len(group)/2]
+    OUT.write("\t".join(map(str,med)))
+    if threshFile is not None and k in thresh:
+        OUT.write('\t'+str(thresh.get(k)))
+        if float(decimal.Decimal(med[1]))>=thresh.get(k):
+            OUT.write('\t'+'yes')
+        else:
+            OUT.write('\t'+'no')
+    OUT.write('\n')
+OUT.close()
+print "The median AUROC and corresponding other statistics for pairwise files are in: %s\n"%(medFile)
+

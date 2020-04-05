@@ -1,0 +1,148 @@
+#!/usr/bin/env python
+
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, dirname, realpath, isdir, basename
+from os import listdir
+import os
+import random
+
+homeDir = dirname(realpath(__file__))+"/"
+
+if not isfile(homeDir+"helperScripts.py"):
+	raise Exception("The helperScripts script is not found. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the bin directory. Exitting.")
+from helperScripts import getOneShellOutput, isInt, GenerateTempFilename
+
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('db', metavar = 'database', help='database ID')
+arg_obj.add_argument('FG', metavar = 'FG', help='FG BED file')
+arg_obj.add_argument('-seed', metavar = 'seed', help='seed for randomization, preferably a number (anything given is converted to a string); default 123456789')
+arg_obj.add_argument('-BG', metavar = 'BG', help='output directory name. If not given, prefix will be the same as the FG file')
+arg_obj.add_argument('-mult', metavar = 'mult', help='multiplicity factor (positive integer)')
+arg_obj.add_argument('-black', metavar = 'black', help=argparse.SUPPRESS)
+args = arg_obj.parse_args()
+
+genome = args.db.split('_')[0]
+
+if not isdir(homeDir+"../../data/GENRE/%s/db/%s"%(genome,args.db)):
+	raise Exception("Please download a vaild database before continuing. See python getGENRE.py -avail for options.")
+
+if not isfile(args.FG):
+	raise Exception("Your FG BED file does not exist.")
+
+if not isfile(homeDir+"getBackground_forMEDEA"):
+	raise Exception("The getBackground_forMEDEA script is not found. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the bin directory. Exitting.")
+
+"""
+#hiding for MEDEA beta ZIP.
+dnld=homeDir+"../../downloads.txt"
+if not isfile(dnld):
+	print "Couldn't find downloads.txt file in the glossary-GENRE home directory on your system, so couldn't determine GENRE version. In the future, do not delete this file."
+else:
+	print "Using GENRE version %s"%(getOneShellOutput("grep \"$(printf '^GENRE%s')\" %s | cut -f2"%(r"\t",dnld))[0]) #looks wonky, but works on Mac
+"""
+
+db=None; spec=None; fa=None
+prefix = homeDir+"../../data/GENRE/%s/db/%s/"%(genome,args.db)
+if not isdir(prefix):
+	raise Exception("The internal structure of the glossary-GENRE suite has been compromised. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the data directory. Exitting.")
+for f in listdir(prefix):
+	if f.rsplit(".",1)[-1]=="db":
+		db = prefix+f
+	if f.rsplit(".",1)[-1]=="txt":
+		spec = prefix+f
+
+prefix = homeDir+"../../data/GENRE/%s/genome/"%(genome)
+if not isdir(prefix):
+	raise Exception("The internal structure of the glossary-GENRE suite has been compromised. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the data directory. Exitting.")
+for f in listdir(prefix):
+	if f.rsplit(".",1)[-1]=="fa":
+		fa = prefix+f
+
+if db==None or spec==None or fa==None:
+	raise Exception("The internal structure of the glossary-GENRE suite has been compromised. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the data directory. Exitting.")
+
+ret = getOneShellOutput("cut -f5 %s | sed '1d'"%(spec))
+if len(ret[1])!=0:
+	raise Exception("While trying to verify dependent files, an error occurred: %s"%(ret[1]))
+if len(ret[0])==0:
+	raise Exception("The internal structure of the glossary-GENRE suite has been compromised. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the data directory. Exitting.")
+for x in ret[0].split('\n'):
+	exist = getOneShellOutput("ls %s"%(x))
+	if len(exist[1])!=0:
+		raise Exception("The internal structure of the glossary-GENRE suite has been compromised. This should not have happened if you downloaded the GENRE software through getGENRE.py. Please try again and don't edit the files in the data directory. Exitting.")
+
+BGdir = args.BG
+#print BGdir
+if not isdir(BGdir):
+	raise Exception("Shouldn't have happened from MEDEA script.")
+BG = BGdir+basename(args.FG).rsplit('.',1)[0]+"_%sBG.bed"%(args.db.replace("_","-"))
+"""
+if args.BG is not None:
+	BGdir = args.BG+'/'
+	BG = BGdir+basename(args.BG)+'.bed'
+else:
+	BGdir = args.FG.rsplit('.',1)[0]+"_%sBG"%(args.db.replace("_","-"))+'/'
+	BG = BGdir+basename(args.FG).rsplit('.',1)[0]+"_%sBG.bed"%(args.db.replace("_","-"))
+	
+
+if not isdir(BGdir):
+	ret = getOneShellOutput("mkdir %s"%(BGdir))
+	if len(ret[1])!=0 or not isdir(BGdir):
+		raise Exception("When creating output directory, an error occurred.")
+"""
+print "Deleting any blank lines from Foreground BED file and transferring copy to output directory"
+FG = args.FG
+"""
+FG = BGdir+basename(args.FG)
+ret = getOneShellOutput("awk 'BEGIN{FS=\"%s\"} {if(NF!=0) print $0}' %s > %s"%(r"\t",args.FG,FG))
+#ret = getOneShellOutput("sed -i '/^$/d' %s"%(args.FG)) #didn't work on Mac
+if len(ret[1])!=0:
+	raise Exception("When deleting all blank lines from file, an error occurred. Error: %s"%(ret[1]))
+"""
+
+FGfa=BGdir+basename(args.FG).rsplit('.',1)[0]+'.fa'
+ret = getOneShellOutput("fastaFromBed -fi %s -bed %s -fo %s"%(fa,FG,FGfa))
+if len(ret[1])!=0:
+	if isfile(FGfa):
+		getOneShellOutput("rm %s"%(FGfa))
+	raise Exception("A fasta file of the given foreground regions did not finish correctly and was deleted. Please verify that the given database's genome matches your foreground file.\nError:\n%s"%(ret[1]))
+
+if "_" in args.db and args.db.split("_")[-1]=='dflt':
+	ret = getOneShellOutput("awk 'BEGIN{FS=\"%s\"} {if ($3-$2!=200) print $0}' %s | wc -l"%(r"\t",FG))
+	if len(ret[1])!=0 or not isInt(ret[0]):
+		raise Exception("Couldn't verify FG lengths consistent with chosen BG db.")
+	else:
+		if int(ret[0])!=0:
+			print "The background database you've chosen contains only 200bp backgrounds. A background will be found matching the features associated with this database, but all the resulting lengths will be 200bp. Multiple length background databases are forthcoming."
+
+#blacklist addition - KW 6/20/19
+if args.black is not None and not isfile(args.black):
+	raise Exception("You have indicated that you'd like to amend the blacklist, but the file you have given does not exist. Please try again.")
+
+extraArgs = ''
+if args.seed is not None:
+    seed = str(args.seed)
+else:
+	seed = "123456789"
+print "SEED: %s"%(seed)
+extraArgs+=' -seed %s'%(seed)
+if args.mult is not None:
+	if isInt(args.mult) and int(args.mult)>0:
+		extraArgs+=' -mult %s'%(args.mult)
+	else:
+		raise Exception("Multiplicity argument must be a positive integer.")
+if args.black is not None:
+		extraArgs+=' -black %s'%(args.black)
+extraArgs+=' '
+
+ret = getOneShellOutput("%sgetBackground_forMEDEA %s %s %s %s %s%s-nest '(repeats,TSS):C:CG' -cull"%(homeDir,FG,db,spec,BG,fa,extraArgs))
+if len(ret[1])!=0:
+	raise Exception("The getBackground_forMEDEA command failed with the following error: %s"%(ret[1]))
+else:
+	ret = getOneShellOutput("grep -c 'NA' %s"%(BG))
+	if len(ret[1])!=0 or not isInt(ret[0]) or (isInt(ret[0]) and int(ret[0])!=0):
+		print "Your background was insufficiently populated, resulting in row(s) of NAs."
+	print "Your background now exists in:\n%s"%(BG)
+

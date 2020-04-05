@@ -1,0 +1,64 @@
+#!/usr/bin/env python
+
+import argparse
+from argparse import ArgumentParser
+from os.path import isfile, dirname, realpath, isdir, basename
+from os import listdir
+
+def getOneShellOutput(cmd):
+    #print cmd
+    from subprocess import call, PIPE, Popen
+    job_process = Popen(cmd, shell=True, stdout = PIPE, stderr = PIPE)
+    out_stream, err_stream = job_process.communicate()
+    #if len(err_stream)!=0:
+    #    print err_stream
+    return [out_stream.strip(),err_stream]
+
+homeDir = dirname(realpath(__file__))+"/"
+
+arg_obj = ArgumentParser()
+arg_obj.add_argument('genome', metavar = 'genome', help='genome ID, i.e. hg19, dm3, etc.')
+arg_obj.add_argument('dir', metavar = 'dir', help='directory of reference set BED files - the name of this directory will be the reference set ID suffix.')
+args = arg_obj.parse_args()
+
+if not isdir(args.dir):
+    raise Exception("Directory does not exist. Please try again.")
+
+if args.dir[-1]!='/':
+    args.dir+='/'
+
+#validate that the reference genome is downloaded
+genomePath = homeDir+'../../data/GENRE/%s/genome/'%(args.genome)
+arr = [x for x in listdir(genomePath) if x.endswith('.fa')]
+if len(arr)!=1:
+    raise Exception("The fasta file for the genome you've selected doesn't exist. Please download the appropriate genome from getGENRE.py and try again.")
+genomeFA = genomePath+arr[0]
+
+ID = args.dir.rsplit('/',2)[-2]
+outDir = homeDir+'../../data/MEDEA/refSets/%s_%s/'%(args.genome,ID)
+if isdir(outDir):
+    raise Exception("That reference set ID is taken. Please rename your directory and try again.")
+else:
+    ret = getOneShellOutput("mkdir %s"%(outDir))
+    if not isdir(outDir) or len(ret[1])!=0:
+        raise Exception("There was an error making the internal reference set directory. Please verify you have permissions in your MEDEA directories and try again.\nError:\n%s"%(ret[1]))
+
+#directory should contain BED files - verify BED format and that it matches the reference genome (i.e. FASTA command should finish correctly)
+for f in listdir(args.dir):
+    testFile = args.dir+f
+    cpFile = outDir+f
+    fastaOut = args.dir+f.rsplit('.',1)[0]+'.fa'
+    
+    cmd = "fastaFromBed -fi %s -bed %s -fo %s"%(genomeFA,testFile,fastaOut)
+    ret = getOneShellOutput(cmd)
+    if not isfile(fastaOut) or len(ret[1])!=0:
+        getOneShellOutput("rm -r %s"%(outDir))
+        raise Exception("A fasta file of the %s did not finish correctly. Please verify that your file is in BED format and the given database's genome matches your file. Exitting and no reference set was added.\nError:\n%s"%(testFile,ret[1]))
+    
+    getOneShellOutput("rm %s"%(fastaOut)) #don't care so much if this fails.
+    ret = getOneShellOutput("cp %s %s"%(testFile,cpFile))
+    if not isfile(cpFile) or len(ret[1])!=0:
+        raise Exception("There was an error copying %s to the MEDEA reference set directory. Please verify you have permissions in your MEDEA directories and try again.\nError:\n%s"%(testFile,ret[1]))
+
+
+print "The reference set %s_%s has been successfully added to MEDEA."%(args.genome,ID)
