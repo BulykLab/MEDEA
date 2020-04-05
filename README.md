@@ -45,7 +45,7 @@ $ bash envTest_MEDEA.sh
 
 ### Installing
 
-Format MEDEA. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
+Format MEDEA and gunzip files. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
 
 ```
 $ python format.py
