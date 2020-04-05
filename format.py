@@ -19,10 +19,13 @@ args = arg_obj.parse_args()
 
 
 if args.zip:
+	print "Downloading LFS files"
 	toDownload = ['data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.bed.gz', 'data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.db.gz','data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.gz','data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.fai']
 	for f in toDownload:
 		inFile = 'https://github.com/BulykLab/MEDEA/raw/master/'+f
 		outFile = homeDir+f
+		
+		print "Starting %s"%(inFile)
 		
 		if isfile(outFile):
 			getOneShellOutput("rm %s"%(outFile))
