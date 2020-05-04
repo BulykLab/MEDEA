@@ -6,7 +6,7 @@ MEDEA identifies lineage-specifying transcription factors (TFs) from chromatin a
 3. Performing TF motif enrichment analysis with an AUROC metric (Glossary)
 
 ## Publication
-When using this software, please cite the following paper:
+When using this software, please cite the following paper:  
 Mariani L*, Weinand K*, Gisselbrecht SS, Bulyk ML. MEDEA: Analysis of transcription factor binding motifs in accessible chromatin. *Genome Research.* In press.
 
 ## Getting Started
