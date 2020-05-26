@@ -5,10 +5,12 @@ MEDEA identifies lineage-specifying transcription factors (TFs) from chromatin a
 2. Making matched background sets for the motif enrichment analysis (GENRE)
 3. Performing TF motif enrichment analysis with an AUROC metric (Glossary)
 
-## Publication
-When using this software, please cite the following paper:  
+## Publications
+When using MEDEA software, please cite the following paper:  
 Mariani L*, Weinand K*, Gisselbrecht SS, Bulyk ML. [MEDEA: Analysis of transcription factor binding motifs in accessible chromatin.](https://genome.cshlp.org/content/early/2020/05/18/gr.260877.120) *Genome Research.* 2020 May 18. doi: 10.1101/gr.260877.120. Online ahead of print.
 
+When using GENRE or Glossary software outside of MEDEA software, please cite the following paper:
+Mariani L, Weinand K, Vedenko A, Barrera LA, Bulyk ML. [Identification of human lineage-specific transcriptional co-regulators enabled by a glossary of binding modules and tunable genomic backgrounds.](https://www.cell.com/cell-systems/fulltext/S2405-4712(17\)30289-2) *Cell Systems.* 2017 Sep 27. 5(3):187–201
 
 ## Getting Started
 
@@ -83,26 +85,26 @@ Obtain a foreground set.
 3. For this release, the foreground must be aligned to the hg19 genome and be 150 bp.
 4. A test set for MEDEA is given in testing/DNASE.K562.merged.bed. (More info below)
 
-IDs within this release:
+IDs within this release (updated May 25, 2020):
 ```
 Genomes (genome_ID):
-    hg19 - only one used in publication
+    hg19 - only one used in paper
     hg38
     mm10
     mm9
     dm3
 Databases (db_ID):
-    hg19_DNaseSeq - this GENRE database covers the human hg19 genome tiled to 150 bp; only one used in publication
+    hg19_DNaseSeq - this GENRE database covers the human hg19 genome tiled to 150 bp; only one used in paper
     hg38_DNaseSeq - this GENRE database covers the human hg38 genome tiled to 150 bp
     mm10_DNaseSeq - this GENRE database covers the human mm10 genome tiled to 150 bp
     mm9_DNaseSeq - this GENRE database covers the human mm9 genome tiled to 150 bp
     dm3_DNaseSeq - this GENRE database covers the human dm3 genome tiled to 150 bp
 Motifs (motifs_ID): 
-	benchmark-kmer - 13 kmer modules with develepmental TFs selected in this study (see Fig. 1-2,6)
-	benchmark-pwm - 13 pwms with develepmental TFs selected in this study (see Fig. S1B,D)
-	lymphoid-pwm - PWMs relevant to the hematopoietic lineage selected in this study (see Fig. S10)
-	glossary-kmer - 108 glossary kmer modules from (Mariani et al., 2017) (see Fig. 4-5)
-	explorative-pwm - 99 PWMs selected to cover the human TF specificity landscape (see Fig. 4-5)
+    benchmark-kmer - 13 kmer modules with develepmental TFs selected in this study (see Fig. 1-2,6)
+    benchmark-pwm - 13 pwms with develepmental TFs selected in this study (see Fig. S1B,D)
+    lymphoid-pwm - PWMs relevant to the hematopoietic lineage selected in this study (see Fig. S10)
+    glossary-kmer - 108 glossary kmer modules from (Mariani et al., 2017) (see Fig. 4-5)
+    explorative-pwm - 99 PWMs selected to cover the human TF specificity landscape (see Fig. 4-5)
 MEDEA reference sets (ref_ID): hg19_ENCODE-DREAM_DNase_relaxed
 ```
 
