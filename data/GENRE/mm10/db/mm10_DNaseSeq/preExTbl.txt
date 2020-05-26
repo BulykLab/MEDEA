@@ -1,0 +1,4 @@
+criteriaName	subgroups	binType	#bins	fileLoc
+repeats		0,(0-100]	2	data/GENRE/mm10/criteria/mm10_repeats.bed
+TSS		0,(0-100]	2	data/GENRE/mm10/criteria/mm10_TSS.bed
+seq	G,C,CG	equal	20	data/GENRE/mm10/genome/mm10_UnmaskedALL_UCSC.fa

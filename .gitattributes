@@ -1,3 +1,15 @@
 data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.bed.gz filter=lfs diff=lfs merge=lfs -text
 data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.db.gz filter=lfs diff=lfs merge=lfs -text
 data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/hg38/db/hg38_DNaseSeq/hg38BGpool_multLen150x150.bed.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/hg38/db/hg38_DNaseSeq/hg38BGpool_multLen150x150.db.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/hg38/genome/hg38_UnmaskedALL_UCSC.fa.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/mm10/db/mm10_DNaseSeq/mm10BGpool_multLen150x150.bed.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/mm10/db/mm10_DNaseSeq/mm10BGpool_multLen150x150.db.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/mm10/genome/mm10_UnmaskedALL_UCSC.fa.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/mm9/db/mm9_DNaseSeq/mm9BGpool_multLen150x150.bed.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/mm9/db/mm9_DNaseSeq/mm9BGpool_multLen150x150.db.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/mm9/genome/mm9_UnmaskedALL_UCSC.fa.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/dm3/db/dm3_DNaseSeq/dm3BGpool_multLen150x150.bed.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/dm3/db/dm3_DNaseSeq/dm3BGpool_multLen150x150.db.gz filter=lfs diff=lfs merge=lfs -text
+data/GENRE/dm3/genome/dm3_UnmaskedALL_UCSC.fa.gz filter=lfs diff=lfs merge=lfs -text

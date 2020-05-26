@@ -14,13 +14,23 @@ homeDir = dirname(realpath(__file__))+"/"
 
 
 arg_obj = ArgumentParser()
+arg_obj.add_argument('genome', metavar='genome', choices=["hg19","hg38","mm9","mm10","dm3"], help='genome to format')
 arg_obj.add_argument('-zip', action='store_true', help='if you downloaded as a zip file and not through git clone, add this flag to download LFS files')
 args = arg_obj.parse_args()
 
 
+db_bed_file = 'data/GENRE/%s/db/%s_DNaseSeq/%sBGpool_multLen150x150.bed.gz'%(args.genome,args.genome,args.genome)
+db_db_file = 'data/GENRE/%s/db/%s_DNaseSeq/%sBGpool_multLen150x150.db.gz'%(args.genome,args.genome,args.genome)
+genome_fa_file = 'data/GENRE/%s/genome/%s_UnmaskedALL_UCSC.fa.gz'%(args.genome,args.genome)
+genome_fai_file = 'data/GENRE/%s/genome/%s_UnmaskedALL_UCSC.fa.fai'%(args.genome,args.genome)
+crit_repeats_file = 'data/GENRE/%s/criteria/%s_repeats.bed.gz'%(args.genome,args.genome)
+preExTbl = 'data/GENRE/%s/db/%s_DNaseSeq/preExTbl.txt'%(args.genome,args.genome)
+exTbl = 'data/GENRE/%s/db/%s_DNaseSeq/exTbl.txt'%(args.genome,args.genome)
+
+
 if args.zip:
 	print "Downloading LFS files"
-	toDownload = ['data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.bed.gz', 'data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.db.gz','data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.gz','data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.fai']
+	toDownload = [db_bed_file, db_db_file,genome_fa_file,genome_fai_file]
 	for f in toDownload:
 		inFile = 'https://github.com/BulykLab/MEDEA/raw/master/'+f
 		outFile = homeDir+f
@@ -35,15 +45,15 @@ if args.zip:
 		if not isfile(outFile):
 			raise Exception("wget failed.")
 else:
-	ori = homeDir+'data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.fai'
-	tmp = homeDir+'data/GENRE/hg19/genome/temp.fa.fai'
+	ori = homeDir+genome_fai_file
+	tmp = homeDir+'data/GENRE/%s/genome/temp.fa.fai'%(args.genome)
 	getOneShellOutput("cp %s %s"%(ori,tmp))
 	getOneShellOutput("mv %s %s"%(tmp, ori))
 	if not isfile(ori):
 		raise Exception("Genome FASTA index file missing.")
 
 
-toUnzip = [homeDir+"data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.bed.gz",homeDir+"data/GENRE/hg19/db/hg19_DNaseSeq/hg19BGpool_multLen150x150.db.gz",homeDir+"data/GENRE/hg19/genome/hg19_UnmaskedALL_UCSC.fa.gz",homeDir+"data/GENRE/hg19/criteria/hg19_repeats.bed.gz"]
+toUnzip = [homeDir+db_bed_file,homeDir+db_db_file,homeDir+genome_fa_file,homeDir+crit_repeats_file]
 print "gunzipping files"
 for f in toUnzip:
 	print "Starting %s"%(f)
@@ -57,8 +67,6 @@ for f in toUnzip:
 
 
 print "Formatting GENRE DB"
-preExTbl = homeDir+"data/GENRE/hg19/db/hg19_DNaseSeq/preExTbl.txt"
-exTbl = homeDir+"data/GENRE/hg19/db/hg19_DNaseSeq/exTbl.txt"
 
 if not isfile(preExTbl):
 	raise Exception("Initial formatting file doesn't exist.")

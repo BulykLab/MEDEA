@@ -79,6 +79,10 @@ dbDir = homeDir+"../../data/GENRE/%s/db/%s/"%(args.db.split('_')[0],args.db)
 if not isdir(dbDir):
 	raise Exception("The GENRE database you have chosen is not installed. Please install and try again.")
 
+#verify same genome for refset and db - added 5/25/20
+if args.db.split('_')[0] != args.ref.split('_')[0]:
+	raise Exception("The genomes should match between MEDEA reference set and GENRE database.")
+
 #best
 if args.best is not None:
 	col, order, head = re.sub("\s+","",args.best).split(',')

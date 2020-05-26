@@ -1,0 +1,4 @@
+criteriaName	subgroups	binType	#bins	fileLoc
+repeats		0,(0-100]	2	data/GENRE/dm3/criteria/dm3_repeats.bed
+TSS		0,(0-100]	2	data/GENRE/dm3/criteria/dm3_TSS.bed
+seq	G,C,CG	equal	20	data/GENRE/dm3/genome/dm3_UnmaskedALL_UCSC.fa

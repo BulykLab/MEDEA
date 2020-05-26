@@ -7,7 +7,8 @@ MEDEA identifies lineage-specifying transcription factors (TFs) from chromatin a
 
 ## Publication
 When using this software, please cite the following paper:  
-Mariani L*, Weinand K*, Gisselbrecht SS, Bulyk ML. MEDEA: Analysis of transcription factor binding motifs in accessible chromatin. *Genome Research.* In press.
+Mariani L*, Weinand K*, Gisselbrecht SS, Bulyk ML. [MEDEA: Analysis of transcription factor binding motifs in accessible chromatin.](https://genome.cshlp.org/content/early/2020/05/18/gr.260877.120) *Genome Research.* 2020 May 18. doi: 10.1101/gr.260877.120. Online ahead of print.
+
 
 ## Getting Started
 
@@ -48,10 +49,23 @@ $ bash envTest_MEDEA.sh
 
 ### Installing
 
+NOTE May 25, 2020:
+* New GENRE databases and corresponding genomes were added. See below for a list of options.
+* Some of these files are tracked by git lfs and therefore only placeholder files will be downloaded at first.
+* Format the genomes you plan to use.
+* The other genomes will still have these placeholder files that can be formatted later.
+* While these genomes have GENRE databases for background set construction, they do not have curated MEDEA reference sets at this time. You can add your own with bin/MEDEA/addRefSet.
+* You can use GENRE or glossary_GENRE separately (see below), but if you plan to use with MEDEA, the genomes of the GENRE database and MEDEA reference set must match.
+
 Format MEDEA and gunzip files. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
 
 ```
-$ python format.py
+$ python format.py "genome_ID"
+```
+
+Required Arguments:
+```
+genome_ID: genome identifier. See below for a current list of options.
 ```
 
 Optional Arguments:
@@ -71,8 +85,18 @@ Obtain a foreground set.
 
 IDs within this release:
 ```
-Genomes (genome_ID): hg19
-Databases (db_ID): hg19_DNaseSeq - this GENRE database covers the human hg19 genome tiled to 150 bp.
+Genomes (genome_ID):
+    hg19 - only one used in publication
+    hg38
+    mm10
+    mm9
+    dm3
+Databases (db_ID):
+    hg19_DNaseSeq - this GENRE database covers the human hg19 genome tiled to 150 bp; only one used in publication
+    hg38_DNaseSeq - this GENRE database covers the human hg38 genome tiled to 150 bp
+    mm10_DNaseSeq - this GENRE database covers the human mm10 genome tiled to 150 bp
+    mm9_DNaseSeq - this GENRE database covers the human mm9 genome tiled to 150 bp
+    dm3_DNaseSeq - this GENRE database covers the human dm3 genome tiled to 150 bp
 Motifs (motifs_ID): 
 	benchmark-kmer - 13 kmer modules with develepmental TFs selected in this study (see Fig. 1-2,6)
 	benchmark-pwm - 13 pwms with develepmental TFs selected in this study (see Fig. S1B,D)
