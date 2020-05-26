@@ -9,7 +9,7 @@ MEDEA identifies lineage-specifying transcription factors (TFs) from chromatin a
 When using MEDEA software, please cite the following paper:  
 Mariani L*, Weinand K*, Gisselbrecht SS, Bulyk ML. [MEDEA: Analysis of transcription factor binding motifs in accessible chromatin.](https://genome.cshlp.org/content/early/2020/05/18/gr.260877.120) *Genome Research.* 2020 May 18. doi: 10.1101/gr.260877.120. Online ahead of print.
 
-When using GENRE or Glossary software outside of MEDEA software, please cite the following paper:
+When using GENRE or Glossary software outside of MEDEA software, please cite the following paper:  
 Mariani L, Weinand K, Vedenko A, Barrera LA, Bulyk ML. [Identification of human lineage-specific transcriptional co-regulators enabled by a glossary of binding modules and tunable genomic backgrounds.](https://www.cell.com/cell-systems/fulltext/S2405-4712(17)30289-2) *Cell Systems.* 2017 Sep 27. 5(3):187–201
 
 ## Getting Started
