@@ -59,6 +59,8 @@ NOTE May 25, 2020:
 * While these genomes have GENRE databases for background set construction, they do not have curated MEDEA reference sets at this time. See below for our recommendations for making your own reference sets that can be added with bin/MEDEA/addRefSet.
 * You can use GENRE or glossary_GENRE separately (see below), but if you plan to use with MEDEA, the genomes of the GENRE database and MEDEA reference set must match.
 
+\
+
 Format MEDEA and gunzip files. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
 
 ```
@@ -113,7 +115,7 @@ In our experience, a good reference set of datasets for chromatin accessibility 
 2. Each dataset should be present in, or based on, at least two replicated independent experiments. A careful post-processing of the chromatin accessibility data may further improve the quality of the final selected peaks.
 3. Last, but not least, the reference set should contain at least a dozen cell types, but not more than 100. To get a more global look at motifs in cellular context, the cell types should be as phenotypically spread as possible to avoid excluding shared regulatory elements of two very similar cell types. See Supplemental Figure 4 of the [MEDEA paper](https://genome.cshlp.org/content/early/2020/05/18/gr.260877.120) for more details.
 
-MEDEA's well curated reference set for hg19 was retrieved from the ENCODE-DREAM challenge. For more information on how it was made, please see Section 3 of the [their website](https://www.synapse.org/#!Synapse:syn6131484/wiki/402033).
+MEDEA's well curated reference set for hg19 was retrieved from the ENCODE-DREAM challenge. For more information on how it was made, please see Section 3 of [their website](https://www.synapse.org/#!Synapse:syn6131484/wiki/402033).
 
 
 ### MEDEA
