@@ -56,7 +56,7 @@ NOTE May 25, 2020:
 * Some of these files are tracked by git lfs and therefore only placeholder files will be downloaded at first.
 * Format the genomes you plan to use.
 * The other genomes will still have these placeholder files that can be formatted later.
-* While these genomes have GENRE databases for background set construction, they do not have curated MEDEA reference sets at this time. You can add your own with bin/MEDEA/addRefSet.
+* While these genomes have GENRE databases for background set construction, they do not have curated MEDEA reference sets at this time. See below for our recommendations for making your own reference sets that can be added with bin/MEDEA/addRefSet.
 * You can use GENRE or glossary_GENRE separately (see below), but if you plan to use with MEDEA, the genomes of the GENRE database and MEDEA reference set must match.
 
 Format MEDEA and gunzip files. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
@@ -107,6 +107,13 @@ Motifs (motifs_ID):
     explorative-pwm - 99 PWMs selected to cover the human TF specificity landscape (see Fig. 4-5)
 MEDEA reference sets (ref_ID): hg19_ENCODE-DREAM_DNase_relaxed
 ```
+
+In our experience, a good reference set of datasets for chromatin accessibility regions should have the following features:
+1. We suggest using [narrowPeak bed file format](https://genome.ucsc.edu/FAQ/FAQformat.html#format12). While MEDEA reference sets do not require a peak ranking metric and a peak summit value, these features can be used to measure the quality of the peakset. Each peakset file should be named for the cell type it represents and contain at least 50,000 peaks.
+2. Each dataset should be present in, or based on, at least two replicated independent experiments. A careful post-processing of the chromatin accessibility data may further improve the quality of the final selected peaks.
+3. Last, but not least, the reference set should contain at least a dozen cell types, but not more than 100. To get a more global look at motifs in cellular context, the cell types should be as phenotypically spread as possible to avoid excluding shared regulatory elements of two very similar cell types. See Supplemental Figure 4 of the [MEDEA paper](https://genome.cshlp.org/content/early/2020/05/18/gr.260877.120) for more details.
+
+MEDEA's well curated reference set for hg19 was retrieved from the ENCODE-DREAM challenge. For more information on how it was made, please see Section 3 of the [their website](https://www.synapse.org/#!Synapse:syn6131484/wiki/402033).
 
 
 ### MEDEA
