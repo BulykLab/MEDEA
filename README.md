@@ -59,9 +59,7 @@ NOTE May 25, 2020:
 * While these genomes have GENRE databases for background set construction, they do not have curated MEDEA reference sets at this time. See below for our recommendations for making your own reference sets that can be added with bin/MEDEA/addRefSet.
 * You can use GENRE or glossary_GENRE separately (see below), but if you plan to use with MEDEA, the genomes of the GENRE database and MEDEA reference set must match.
 
-\
-
-Format MEDEA and gunzip files. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
+\Format MEDEA and gunzip files. If you have downloaded the zip file directly from the website, this script will also download the large files from LFS.
 
 ```
 $ python format.py "genome_ID"
